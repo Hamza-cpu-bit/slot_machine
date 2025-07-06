@@ -1,0 +1,18 @@
+{
+    "hamza": {
+        "password": "mine@0101",
+        "in_game_balance": 500000,
+        "money_account": 500000,
+        "daily_deposit": {
+            "date": "2025-07-06"
+        }
+    },
+    "huzaifa": {
+        "password": "mine@0101",
+        "in_game_balance": 500000,
+        "money_account": 500000,
+        "daily_deposit": {
+            "date": "2025-07-06"
+        }
+    }
+}
