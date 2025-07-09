@@ -1,17 +1,16 @@
+import tkinter as tk
+from tkinter import messagebox, simpledialog
 import json
 import os
 import random
 from datetime import datetime
 
-# --- Config ---
 USER_FILE = "account_management.json"
+DAILY_BONUS = 500
+ROWS, COLS = 5, 3
 MAX_LINES = 5
 MIN_BET = 1
-MAX_BET = 100000
-DAILY_BONUS = 500  # changed from 500 to 100
-
-ROWS = 5
-COLS = 3
+MAX_BET = 100
 
 symbol_count = {
     "A": 2,
@@ -26,7 +25,6 @@ symbol_value = {
     "D": 2
 }
 
-# --- User File Handling ---
 def load_users():
     if os.path.exists(USER_FILE):
         with open(USER_FILE, "r") as f:
@@ -42,52 +40,7 @@ def ensure_daily_bonus(user):
     if user["daily_deposit"]["date"] != today:
         user["daily_deposit"]["date"] = today
         user["in_game_balance"] += DAILY_BONUS
-        print(f"\nDaily bonus of ${DAILY_BONUS} added to your in-game balance!")
-
-# --- Auth ---
-def signup(users):
-    username = input("Choose a username: ")
-    if username in users:
-        print("Username already exists.")
-        return None
-    password = input("Choose a password: ")
-    users[username] = {
-        "password": password,
-        "in_game_balance": DAILY_BONUS,
-        "money_account": 0,
-        "daily_deposit": {
-            "date": datetime.now().strftime("%Y-%m-%d")
-        }
-    }
-    print(f"\nWelcome {username}, you’ve been credited with ${DAILY_BONUS} for practice.")
-    return username
-
-def login(users):
-    username = input("Username: ")
-    password = input("Password: ")
-    if username in users and users[username]["password"] == password:
-        return username
-    print("Invalid credentials.")
-    return None
-
-# --- Slot Machine Logic ---
-def get_number_of_lines():
-    while True:
-        lines = input(f"Enter number of lines to bet on (1-{MAX_LINES}): ")
-        if lines.isdigit():
-            lines = int(lines)
-            if 1 <= lines <= MAX_LINES:
-                return lines
-        print("Invalid number of lines.")
-
-def get_bet(balance):
-    while True:
-        amount = input(f"Enter bet per line (${MIN_BET}-${MAX_BET}): ")
-        if amount.isdigit():
-            amount = int(amount)
-            if MIN_BET <= amount <= MAX_BET and amount * MAX_LINES <= balance:
-                return amount
-        print("Invalid bet amount.")
+        messagebox.showinfo("Daily Bonus", f"🎁 Daily bonus of ${DAILY_BONUS} added!")
 
 def generate_spin():
     all_symbols = []
@@ -105,10 +58,6 @@ def generate_spin():
         columns.append(col)
     return columns
 
-def print_slot(columns):
-    for row in range(ROWS):
-        print(" | ".join(columns[col][row] for col in range(COLS)))
-
 def calculate_winnings(columns, lines, bet):
     winnings = 0
     winning_lines = []
@@ -119,82 +68,116 @@ def calculate_winnings(columns, lines, bet):
             winning_lines.append(line + 1)
     return winnings, winning_lines
 
-def withdraw(user):
-    print(f"Your current in-game balance: ${user['in_game_balance']}")
-    amount = input("Enter amount to withdraw to your money account: $")
-    if amount.isdigit():
-        amount = int(amount)
-        if 0 < amount <= user["in_game_balance"]:
-            user["in_game_balance"] -= amount
-            user["money_account"] += amount
-            print(f"${amount} withdrawn successfully to your money account.")
+class SlotApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("🎰 Slot Machine Game")
+        self.users = load_users()
+        self.current_user = None
+
+        self.login_frame()
+
+    def login_frame(self):
+        self.clear()
+        tk.Label(self.root, text="Login or Signup", font=("Arial", 16)).pack(pady=10)
+        tk.Button(self.root, text="Login", width=15, command=self.login).pack(pady=5)
+        tk.Button(self.root, text="Signup", width=15, command=self.signup).pack(pady=5)
+
+    def clear(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+    def login(self):
+        username = simpledialog.askstring("Login", "Username:")
+        password = simpledialog.askstring("Login", "Password:", show='*')
+
+        if username in self.users and self.users[username]["password"] == password:
+            self.current_user = self.users[username]
+            ensure_daily_bonus(self.current_user)
+            self.main_menu()
         else:
-            print("Invalid amount.")
-    else:
-        print("Please enter a valid number.")
+            messagebox.showerror("Error", "Invalid credentials.")
 
-# --- Main Game Loop ---
-def main():
-    print("🎰 DEMO SLOT MACHINE 🎰")
-    users = load_users()
+    def signup(self):
+        username = simpledialog.askstring("Signup", "Choose a username:")
+        if username in self.users:
+            messagebox.showerror("Error", "Username already exists.")
+            return
+        password = simpledialog.askstring("Signup", "Choose a password:", show='*')
 
-    while True:
-        choice = input("\n1. Login\n2. Signup\nChoose option: ")
-        if choice == "1":
-            username = login(users)
-        elif choice == "2":
-            username = signup(users)
-        else:
-            print("Invalid option.")
-            continue
-        if username:
-            break
+        self.users[username] = {
+            "password": password,
+            "in_game_balance": DAILY_BONUS,
+            "money_account": 0,
+            "daily_deposit": {
+                "date": datetime.now().strftime("%Y-%m-%d")
+            }
+        }
+        save_users(self.users)
+        messagebox.showinfo("Account Created", f"Welcome {username}!\nDaily bonus of ${DAILY_BONUS} added.")
+        self.login_frame()
 
-    user = users[username]
-    ensure_daily_bonus(user)
+    def main_menu(self):
+        self.clear()
+        tk.Label(self.root, text="🎰 Slot Machine", font=("Arial", 16)).pack(pady=10)
 
-    while True:
-        print(f"\nIn-game balance: ${user['in_game_balance']}")
-        print(f"Money account:   ${user['money_account']}")
+        self.balance_lbl = tk.Label(self.root, font=("Arial", 12))
+        self.update_balance_label()
+        self.balance_lbl.pack()
 
-        print("\nOptions:")
-        print("1. Play slot machine")
-        print("2. Withdraw to money account")
-        print("3. Quit")
+        tk.Button(self.root, text="Play Slot", width=20, command=self.play_slot).pack(pady=5)
+        tk.Button(self.root, text="Withdraw", width=20, command=self.withdraw).pack(pady=5)
+        tk.Button(self.root, text="Logout", width=20, command=self.logout).pack(pady=5)
 
-        choice = input("Choose: ")
+    def update_balance_label(self):
+        ig = self.current_user["in_game_balance"]
+        real = self.current_user["money_account"]
+        self.balance_lbl.config(text=f"In-game: ${ig} | Account: ${real}")
 
-        if choice == "1":
-            lines = get_number_of_lines()
-            bet = get_bet(user['in_game_balance'])
-            total_bet = lines * bet
+    def play_slot(self):
+        lines = simpledialog.askinteger("Lines", f"Enter lines to bet on (1-{MAX_LINES}):", minvalue=1, maxvalue=MAX_LINES)
+        if not lines:
+            return
+        bet = simpledialog.askinteger("Bet", f"Bet per line (${MIN_BET}-{MAX_BET}):", minvalue=MIN_BET, maxvalue=MAX_BET)
+        if not bet:
+            return
 
-            if total_bet > user['in_game_balance']:
-                print("Insufficient in-game balance.")
-                continue
+        total_bet = lines * bet
+        if total_bet > self.current_user["in_game_balance"]:
+            messagebox.showerror("Error", "Insufficient balance.")
+            return
 
-            user['in_game_balance'] -= total_bet
-            slots = generate_spin()
-            print_slot(slots)
+        self.current_user["in_game_balance"] -= total_bet
+        spin = generate_spin()
 
-            winnings, winning_lines = calculate_winnings(slots, lines, bet)
-            user['in_game_balance'] += winnings
+        result = ""
+        for r in range(ROWS):
+            row_str = " | ".join(spin[c][r] for c in range(COLS))
+            result += row_str + "\n"
 
-            print(f"\nYou won ${winnings}")
-            if winning_lines:
-                print("Winning lines:", ", ".join(map(str, winning_lines)))
+        winnings, winning_lines = calculate_winnings(spin, lines, bet)
+        self.current_user["in_game_balance"] += winnings
 
-        elif choice == "2":
-            withdraw(user)
+        save_users(self.users)
+        self.update_balance_label()
 
-        elif choice == "3":
-            break
+        messagebox.showinfo("Results", f"{result}\nYou won ${winnings}\nWinning lines: {winning_lines if winning_lines else 'None'}")
 
-        else:
-            print("Invalid choice.")
+    def withdraw(self):
+        balance = self.current_user["in_game_balance"]
+        amount = simpledialog.askinteger("Withdraw", f"In-game balance: ${balance}\nWithdraw amount:", minvalue=1, maxvalue=balance)
+        if amount:
+            self.current_user["in_game_balance"] -= amount
+            self.current_user["money_account"] += amount
+            save_users(self.users)
+            self.update_balance_label()
+            messagebox.showinfo("Success", f"Withdrew ${amount} to money account.")
 
-    save_users(users)
-    print("Thanks for playing!")
+    def logout(self):
+        self.current_user = None
+        self.login_frame()
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = SlotApp(root)
+    root.mainloop()
