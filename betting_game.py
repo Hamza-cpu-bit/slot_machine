@@ -7,7 +7,7 @@ from datetime import datetime
 
 USER_FILE = "account_management.json"
 DAILY_BONUS = 500
-ROWS, COLS = 5, 3
+ROWS, COLS = 99,3
 MAX_LINES = 5
 MIN_BET = 1
 MAX_BET = 100
@@ -49,14 +49,13 @@ def generate_spin():
 
     columns = []
     for _ in range(COLS):
-        current = all_symbols[:]
         col = []
         for _ in range(ROWS):
-            val = random.choice(current)
-            current.remove(val)
+            val = random.choice(all_symbols)  # Allow reuse of symbols
             col.append(val)
         columns.append(col)
     return columns
+
 
 def calculate_winnings(columns, lines, bet):
     winnings = 0
@@ -126,6 +125,7 @@ class SlotApp:
         self.balance_lbl.pack()
 
         tk.Button(self.root, text="Play Slot", width=20, command=self.play_slot).pack(pady=5)
+        tk.Button(self.root, text="Deposit", width=20, command=self.deposit).pack(pady=5)
         tk.Button(self.root, text="Withdraw", width=20, command=self.withdraw).pack(pady=5)
         tk.Button(self.root, text="Logout", width=20, command=self.logout).pack(pady=5)
 
@@ -162,6 +162,16 @@ class SlotApp:
         self.update_balance_label()
 
         messagebox.showinfo("Results", f"{result}\nYou won ${winnings}\nWinning lines: {winning_lines if winning_lines else 'None'}")
+
+    def deposit(self):
+        real_balance = self.current_user["money_account"]
+        amount = simpledialog.askinteger("Deposit", f"Real money balance: ${real_balance}\nEnter deposit amount:", minvalue=1, maxvalue=real_balance)
+        if amount:
+            self.current_user["money_account"] -= amount
+            self.current_user["in_game_balance"] += amount
+            save_users(self.users)
+            self.update_balance_label()
+            messagebox.showinfo("Success", f"Deposited ${amount} into in-game balance.")
 
     def withdraw(self):
         balance = self.current_user["in_game_balance"]
